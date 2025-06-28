@@ -155,7 +155,7 @@ class APIClient {
         return false;
     }
 
-        // Load data for a specific region with progressive loading
+    // Load data for a specific region with progressive loading
     async loadRegionData(region, useProgressiveLoading = true) {
         try {
             const data = await this.fetchData(region, useProgressiveLoading);
@@ -167,6 +167,54 @@ class APIClient {
             };
         } catch (error) {
             console.error(`Failed to load ${region} data:`, error);
+            return {
+                success: false,
+                error: error.message,
+                data: null,
+                hasChanged: false
+            };
+        }
+    }
+
+    // Load data for a specific date
+    async loadRegionDataForDate(region, selectedDate) {
+        try {
+            const allData = await this.fetchData(region, false);
+
+            // Filter data to find the entry for the specific date
+            const dateEntry = allData.find(entry => entry.report_date === selectedDate);
+
+            if (!dateEntry) {
+                // If exact date not found, return the closest previous date with data
+                const sortedData = allData.sort((a, b) => new Date(b.report_date) - new Date(a.report_date));
+                const targetDate = new Date(selectedDate);
+
+                const closestEntry = sortedData.find(entry => {
+                    const entryDate = new Date(entry.report_date);
+                    return entryDate <= targetDate;
+                });
+
+                if (!closestEntry) {
+                    throw new Error(`No data available for ${selectedDate} or any previous date`);
+                }
+
+                return {
+                    success: true,
+                    data: [closestEntry],
+                    hasChanged: false,
+                    isClosestDate: true,
+                    actualDate: closestEntry.report_date
+                };
+            }
+
+            return {
+                success: true,
+                data: [dateEntry],
+                hasChanged: false,
+                isExactDate: true
+            };
+        } catch (error) {
+            console.error(`Failed to load ${region} data for date ${selectedDate}:`, error);
             return {
                 success: false,
                 error: error.message,

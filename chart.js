@@ -17,7 +17,7 @@ class ChartManager {
     }
 
     // Create or update chart with new data
-    createChart(data, region) {
+    createChart(data, region, selectedDate = null) {
         if (!this.canvas || !data || data.length === 0) {
             console.warn('Cannot create chart: missing canvas or data');
             return;
@@ -28,7 +28,7 @@ class ChartManager {
 
         try {
             // Prepare data for the last 30 days
-            const chartData = this.prepareChartData(data, region);
+            const chartData = this.prepareChartData(data, region, selectedDate);
 
             if (chartData.labels.length === 0) {
                 console.warn('No data available for chart');
@@ -55,22 +55,50 @@ class ChartManager {
         }
     }
 
-    // Prepare chart data from API response
-    prepareChartData(data, region) {
-        // Sort data by date first, then take last 30 days
-        const sortedData = [...data].sort((a, b) => new Date(a.date) - new Date(b.date));
-        const last30Days = sortedData.slice(-CONFIG.UI.chartMaxPoints);
+            // Prepare chart data from API response
+    prepareChartData(data, region, selectedDate = null) {
+        // Sort data by date first using string comparison (safe for YYYY-MM-DD format)
+        const sortedData = [...data].sort((a, b) => a.date.localeCompare(b.date));
+
+        let filteredData;
+        if (selectedDate) {
+            // Find the index of the selected date or the closest earlier date using string comparison
+            let endIndex = sortedData.findIndex(item => item.date > selectedDate);
+
+            // If no date found after selected date, use the last available date
+            if (endIndex === -1) {
+                endIndex = sortedData.length;
+            }
+
+            // Take the last 30 days up to and including the selected date
+            const startIndex = Math.max(0, endIndex - CONFIG.UI.chartMaxPoints);
+            filteredData = sortedData.slice(startIndex, endIndex);
+                        } else {
+            // Show last 30 days up to and including today
+            const today = new Date();
+            const todayStr = today.toISOString().split('T')[0]; // YYYY-MM-DD format
+
+            // Find all data up to and including today using timezone-safe comparison
+            const dataUpToToday = sortedData.filter(item => {
+                return item.date <= todayStr; // Direct string comparison works for YYYY-MM-DD format
+            });
+
+            // Take the last 30 days from data up to today
+            filteredData = dataUpToToday.slice(-CONFIG.UI.chartMaxPoints);
+        }
 
         const chartData = {
             labels: [],
             datasets: this.createDatasets()
         };
 
-        last30Days.forEach((item, index) => {
+                filteredData.forEach((item, index) => {
             if (!item.date) return;
 
-            // Format date for display
-            const date = new Date(item.date);
+            // Parse date in timezone-safe way to avoid timezone conversion issues
+            const [year, month, day] = item.date.split('-').map(Number);
+            const date = new Date(year, month - 1, day); // month is 0-based
+
             const label = date.toLocaleDateString('en-US', {
                 month: 'short',
                 day: 'numeric'
@@ -78,10 +106,21 @@ class ChartManager {
             chartData.labels.push(label);
 
             // Calculate daily casualties (difference from previous day)
-            const dailyData = this.calculateDailyCasualties(item, last30Days[index - 1]);
+            const dailyData = this.calculateDailyCasualties(item, filteredData[index - 1]);
 
-            chartData.datasets[0].data.push(dailyData.killed);
-            chartData.datasets[1].data.push(dailyData.injured);
+            // Store the actual date with the data point for tooltip accuracy
+            chartData.datasets[0].data.push({
+                x: label,
+                y: dailyData.killed,
+                date: item.date,
+                parsedDate: date // Store the properly parsed date too
+            });
+            chartData.datasets[1].data.push({
+                x: label,
+                y: dailyData.injured,
+                date: item.date,
+                parsedDate: date
+            });
         });
 
         return chartData;
@@ -141,6 +180,10 @@ class ChartManager {
                 intersect: false,
                 mode: 'index'
             },
+            parsing: {
+                xAxisKey: 'x',
+                yAxisKey: 'y'
+            },
             plugins: this.getPluginOptions(regionName),
             scales: this.getScaleOptions()
         };
@@ -149,15 +192,8 @@ class ChartManager {
     // Get plugin configuration options
     getPluginOptions(regionName) {
         return {
-            title: {
-                display: true,
-                                    text: `Daily Afflictions - ${regionName} (Last 30 Days)`,
-                color: '#ffffff',
-                font: {
-                    size: 16,
-                    weight: 'bold'
-                },
-                padding: 20
+                        title: {
+                display: false
             },
             legend: {
                 display: true,
@@ -181,6 +217,25 @@ class ChartManager {
                 displayColors: true,
                 callbacks: {
                     title: function(context) {
+                        // Use the properly parsed date to avoid timezone issues
+                        const dataPoint = context[0].raw;
+                        if (dataPoint && dataPoint.parsedDate) {
+                            return `Date: ${dataPoint.parsedDate.toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric'
+                            })}`;
+                        }
+                        // Fallback to parsing the original date string safely
+                        if (dataPoint && dataPoint.date) {
+                            const [year, month, day] = dataPoint.date.split('-').map(Number);
+                            const date = new Date(year, month - 1, day);
+                            return `Date: ${date.toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric'
+                            })}`;
+                        }
                         return `Date: ${context[0].label}`;
                     },
                     label: function(context) {
@@ -196,6 +251,7 @@ class ChartManager {
     getScaleOptions() {
         return {
             x: {
+                type: 'category',
                 display: true,
                 title: {
                     display: true,
@@ -264,7 +320,7 @@ class ChartManager {
     }
 
     // Update existing chart with new data
-    updateChart(data, region) {
+    updateChart(data, region, selectedDate = null) {
         if (!ChartManager.isChartJSAvailable()) {
             console.warn('Chart.js not available');
             return;
@@ -272,27 +328,23 @@ class ChartManager {
 
         // Create new chart if none exists
         if (!this.chart) {
-            this.createChart(data, region);
+            this.createChart(data, region, selectedDate);
             return;
         }
 
         try {
             // Update chart data
-            const chartData = this.prepareChartData(data, region);
+            const chartData = this.prepareChartData(data, region, selectedDate);
 
             this.chart.data.labels = chartData.labels;
             this.chart.data.datasets[0].data = chartData.datasets[0].data;
             this.chart.data.datasets[1].data = chartData.datasets[1].data;
 
-            // Update chart title
-            const regionName = CONFIG.REGIONS[region]?.name || region;
-            this.chart.options.plugins.title.text = `Daily Afflictions - ${regionName} (Last 30 Days)`;
-
             this.chart.update();
         } catch (error) {
             console.error('Error updating chart:', error);
             // Fallback to creating new chart
-            this.createChart(data, region);
+            this.createChart(data, region, selectedDate);
         }
     }
 
