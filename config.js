@@ -24,11 +24,11 @@ const isGitHubPages = () => {
 const getAPIUrls = () => {
     if (isGitHubPages()) {
         // Use CORS proxy for GitHub Pages since direct access is blocked
-        // Try cors.sh which is reliable and doesn't block requests
-        const corsProxy = 'https://cors.sh/';
+        // Try api.codetabs.com which is stable and reliable
+        const corsProxy = 'https://api.codetabs.com/v1/proxy/?quest=';
         return {
-            gaza: corsProxy + 'https://data.techforpalestine.org/api/v2/casualties_daily.json',
-            westbank: corsProxy + 'https://data.techforpalestine.org/api/v2/west_bank_daily.json'
+            gaza: corsProxy + encodeURIComponent('https://data.techforpalestine.org/api/v2/casualties_daily.json'),
+            westbank: corsProxy + encodeURIComponent('https://data.techforpalestine.org/api/v2/west_bank_daily.json')
         };
     } else if (isStaticHosting()) {
         // Direct API endpoints for other static hosting (Netlify, Vercel, etc.)

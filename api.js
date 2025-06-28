@@ -97,7 +97,7 @@ class APIClient {
         }, 8000); // Reduced to 8 second timeout
 
         // Check if we're using GitHub Pages (CORS proxy)
-        const isUsingCORSProxy = url.includes('cors.sh') || url.includes('corsproxy.io') || url.includes('allorigins.win');
+        const isUsingCORSProxy = url.includes('codetabs.com') || url.includes('cors.sh') || url.includes('corsproxy.io') || url.includes('allorigins.win');
 
         // Use simplified headers for CORS proxy to avoid preflight issues
         const headers = isUsingCORSProxy ? {
