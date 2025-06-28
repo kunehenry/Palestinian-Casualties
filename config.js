@@ -24,7 +24,8 @@ const isGitHubPages = () => {
 const getAPIUrls = () => {
     if (isGitHubPages()) {
         // Use CORS proxy for GitHub Pages since direct access is blocked
-        const corsProxy = 'https://api.allorigins.win/raw?url=';
+        // Try corsproxy.io which is more reliable
+        const corsProxy = 'https://corsproxy.io/?';
         return {
             gaza: corsProxy + encodeURIComponent('https://data.techforpalestine.org/api/v2/casualties_daily.json'),
             westbank: corsProxy + encodeURIComponent('https://data.techforpalestine.org/api/v2/west_bank_daily.json')

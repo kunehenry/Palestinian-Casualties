@@ -96,15 +96,24 @@ class APIClient {
             timeoutController.abort();
         }, 8000); // Reduced to 8 second timeout
 
+        // Check if we're using GitHub Pages (CORS proxy)
+        const isUsingCORSProxy = url.includes('corsproxy.io') || url.includes('allorigins.win');
+
+        // Use simplified headers for CORS proxy to avoid preflight issues
+        const headers = isUsingCORSProxy ? {
+            'Accept': 'application/json'
+            // No Cache-Control header for CORS proxy
+        } : {
+            'Accept': 'application/json',
+            'Cache-Control': 'no-cache'
+        };
+
         try {
             const response = await fetch(url, {
                 signal: timeoutController.signal,
                 method: 'GET',
                 mode: 'cors',
-                headers: {
-                    'Accept': 'application/json',
-                    'Cache-Control': 'no-cache'
-                }
+                headers
             });
 
             clearTimeout(timeoutId);
