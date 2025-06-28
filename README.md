@@ -83,27 +83,52 @@ run_server(8080)
 
 ### Production Deployment
 
-#### Static Hosting (Netlify, Vercel, GitHub Pages)
-1. Deploy all files except `server.py`
-2. Configure your hosting provider to handle CORS for API requests
-3. Update API URLs in `config.js` if needed
+#### GitHub Pages (Recommended for Static Hosting)
+1. Push your repository to GitHub
+2. Go to repository Settings → Pages
+3. Set source to "Deploy from a branch" and select your main branch
+4. Your site will be available at `https://username.github.io/repository-name`
 
-#### Web Server (Apache, Nginx)
+**Note**: The app automatically detects GitHub Pages and uses direct API endpoints.
+
+#### Other Static Hosting (Netlify, Vercel)
+1. Deploy all files except `server.py`
+2. The app automatically detects static hosting and uses direct API endpoints
+3. No configuration changes needed
+
+#### Web Server with Python Proxy (Development & Production)
 1. Upload all files to your web directory
-2. Configure CORS headers for `/api/` routes
-3. Set up proxy rules for Palestine Datasets API
+2. Run `python3 server.py` to start the proxy server
+3. The app automatically detects server environments and uses proxy endpoints
+4. Benefits: Server-side caching, CORS handling, request optimization
 
 ## ⚙️ Configuration
 
-All settings are centralized in `config.js`:
+All settings are centralized in `config.js` with automatic environment detection:
+
+### Environment Detection
+
+The app automatically detects the deployment environment and selects appropriate API endpoints:
+
+- **Static Hosting** (GitHub Pages, Netlify, Vercel): Uses direct API calls to Tech for Palestine
+- **Server Environment** (localhost, custom domains with server.py): Uses proxy endpoints
+
+**Detection Logic:**
+- GitHub Pages: `*.github.io` or `*.github.com` domains
+- Netlify: `*.netlify.app` or `*.netlify.com` domains
+- Vercel: `*.vercel.app` or `*.vercel.com` domains
+- Local files: `file://` protocol
+- Other static hosts: Non-localhost domains without server detection
+
+**Debug Environment Detection:**
+To verify which environment is detected, add `?debug=env` to your URL or run `debugEnvironment()` in the browser console.
 
 ```javascript
 export const CONFIG = {
-    // API endpoints
-    API_URLS: {
-        gaza: '/api/gaza',
-        westbank: '/api/westbank'
-    },
+    // API endpoints - automatically selected based on environment
+    // Static hosting (GitHub Pages, Netlify, Vercel): Direct API calls
+    // Server environments (localhost, custom domains): Proxy endpoints
+    API_URLS: getAPIUrls(),
 
     // Cache configuration
     CACHE: {

@@ -37,6 +37,48 @@ class PerformanceMonitor {
 
 export const performanceMonitor = new PerformanceMonitor();
 
+// Debug utility for environment detection
+export function debugEnvironment() {
+    const hostname = window.location.hostname;
+    const protocol = window.location.protocol;
+    const href = window.location.href;
+
+    console.group('🔍 Environment Detection Debug');
+    console.log('Current URL:', href);
+    console.log('Hostname:', hostname);
+    console.log('Protocol:', protocol);
+
+    const isGitHubPages = hostname.includes('github.io') || hostname.includes('github.com');
+    const isNetlify = hostname.includes('netlify.app') || hostname.includes('netlify.com');
+    const isVercel = hostname.includes('vercel.app') || hostname.includes('vercel.com');
+    const isLocalFile = protocol === 'file:';
+    const isLocalhost = hostname.includes('localhost') || hostname.includes('127.0.0.1');
+
+    console.log('Detection Results:');
+    console.log('- GitHub Pages:', isGitHubPages);
+    console.log('- Netlify:', isNetlify);
+    console.log('- Vercel:', isVercel);
+    console.log('- Local File:', isLocalFile);
+    console.log('- Localhost:', isLocalhost);
+
+    // Import CONFIG to show current API URLs
+    import('./config.js').then(({ CONFIG }) => {
+        console.log('Selected API URLs:');
+        console.log('- Gaza:', CONFIG.API_URLS.gaza);
+        console.log('- West Bank:', CONFIG.API_URLS.westbank);
+
+        const usingDirectAPI = CONFIG.API_URLS.gaza.startsWith('https://');
+        console.log('Using:', usingDirectAPI ? 'Direct API calls' : 'Proxy endpoints');
+    });
+
+    console.groupEnd();
+}
+
+// Automatically log environment on load (can be disabled in production)
+if (typeof window !== 'undefined' && window.location.search.includes('debug=env')) {
+    debugEnvironment();
+}
+
 // Number formatting utilities
 export function formatNumber(num) {
     if (num === null || num === undefined || num === '') return '-';

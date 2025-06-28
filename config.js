@@ -1,10 +1,39 @@
 // Configuration file for Palestinian Casualties Counter
+
+// Environment detection
+const isStaticHosting = () => {
+    const hostname = window.location.hostname;
+    const isGitHubPages = hostname.includes('github.io') || hostname.includes('github.com');
+    const isNetlify = hostname.includes('netlify.app') || hostname.includes('netlify.com');
+    const isVercel = hostname.includes('vercel.app') || hostname.includes('vercel.com');
+    const isLocalFile = window.location.protocol === 'file:';
+
+    // Also check if we're not on localhost (common for static hosting)
+    const isNotLocalhost = !hostname.includes('localhost') && !hostname.includes('127.0.0.1');
+
+    return isGitHubPages || isNetlify || isVercel || isLocalFile || (isNotLocalhost && !hostname.includes('.')); // Simple domain check
+};
+
+// Choose API URLs based on environment
+const getAPIUrls = () => {
+    if (isStaticHosting()) {
+        // Direct API endpoints for static hosting (GitHub Pages, Netlify, Vercel, etc.)
+        return {
+            gaza: 'https://data.techforpalestine.org/api/v2/casualties_daily.json',
+            westbank: 'https://data.techforpalestine.org/api/v2/west_bank_daily.json'
+        };
+    } else {
+        // Local proxy endpoints for development and server deployments
+        return {
+            gaza: '/api/gaza',
+            westbank: '/api/westbank'
+        };
+    }
+};
+
 export const CONFIG = {
-    // API endpoints
-    API_URLS: {
-        gaza: '/api/gaza',
-        westbank: '/api/westbank'
-    },
+    // API endpoints - automatically selected based on environment
+    API_URLS: getAPIUrls(),
 
     // Cache configuration - optimized for better performance
     CACHE: {
