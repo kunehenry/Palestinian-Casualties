@@ -14,10 +14,23 @@ const isStaticHosting = () => {
     return isGitHubPages || isNetlify || isVercel || isLocalFile || (isNotLocalhost && !hostname.includes('.')); // Simple domain check
 };
 
+// Check if we're specifically on GitHub Pages (needs CORS proxy)
+const isGitHubPages = () => {
+    const hostname = window.location.hostname;
+    return hostname.includes('github.io') || hostname.includes('github.com');
+};
+
 // Choose API URLs based on environment
 const getAPIUrls = () => {
-    if (isStaticHosting()) {
-        // Direct API endpoints for static hosting (GitHub Pages, Netlify, Vercel, etc.)
+    if (isGitHubPages()) {
+        // Use CORS proxy for GitHub Pages since direct access is blocked
+        const corsProxy = 'https://api.allorigins.win/raw?url=';
+        return {
+            gaza: corsProxy + encodeURIComponent('https://data.techforpalestine.org/api/v2/casualties_daily.json'),
+            westbank: corsProxy + encodeURIComponent('https://data.techforpalestine.org/api/v2/west_bank_daily.json')
+        };
+    } else if (isStaticHosting()) {
+        // Direct API endpoints for other static hosting (Netlify, Vercel, etc.)
         return {
             gaza: 'https://data.techforpalestine.org/api/v2/casualties_daily.json',
             westbank: 'https://data.techforpalestine.org/api/v2/west_bank_daily.json'

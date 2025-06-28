@@ -89,7 +89,7 @@ run_server(8080)
 3. Set source to "Deploy from a branch" and select your main branch
 4. Your site will be available at `https://username.github.io/repository-name`
 
-**Note**: The app automatically detects GitHub Pages and uses direct API endpoints.
+**Note**: The app automatically detects GitHub Pages and uses a CORS proxy to access the API since direct calls are blocked by browser security policies.
 
 #### Other Static Hosting (Netlify, Vercel)
 1. Deploy all files except `server.py`
@@ -110,8 +110,9 @@ All settings are centralized in `config.js` with automatic environment detection
 
 The app automatically detects the deployment environment and selects appropriate API endpoints:
 
-- **Static Hosting** (GitHub Pages, Netlify, Vercel): Uses direct API calls to Tech for Palestine
-- **Server Environment** (localhost, custom domains with server.py): Uses proxy endpoints
+- **GitHub Pages**: Uses CORS proxy to bypass browser security restrictions
+- **Other Static Hosting** (Netlify, Vercel): Uses direct API calls to Tech for Palestine
+- **Server Environment** (localhost, custom domains with server.py): Uses local proxy endpoints
 
 **Detection Logic:**
 - GitHub Pages: `*.github.io` or `*.github.com` domains

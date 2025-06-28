@@ -68,7 +68,14 @@ export function debugEnvironment() {
         console.log('- West Bank:', CONFIG.API_URLS.westbank);
 
         const usingDirectAPI = CONFIG.API_URLS.gaza.startsWith('https://');
-        console.log('Using:', usingDirectAPI ? 'Direct API calls' : 'Proxy endpoints');
+        const usingCORSProxy = CONFIG.API_URLS.gaza.includes('allorigins.win');
+        let method = 'Proxy endpoints';
+        if (usingCORSProxy) {
+            method = 'CORS Proxy (GitHub Pages)';
+        } else if (usingDirectAPI) {
+            method = 'Direct API calls';
+        }
+        console.log('Using:', method);
     });
 
     console.groupEnd();
