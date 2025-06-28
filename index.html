@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Palestinian Casualties Daily Counter</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ffffff'%3E%3Cpath d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zM13 17h-2v-6h2v6zm0-8h-2V7h2v2z'/%3E%3C/svg%3E" type="image/svg+xml">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://data.techforpalestine.org">
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+</head>
+<body>
+
+
+    <!-- Pull-to-refresh indicator -->
+    <div class="pull-to-refresh" id="pullToRefresh">
+        <span class="refresh-icon">↓</span>
+        <span class="refresh-text">Pull to refresh</span>
+    </div>
+
+    <!-- Navigation Bar -->
+    <nav class="nav-bar">
+        <button class="nav-button" id="nav-casualty-data">Casualty Data</button>
+        <button class="nav-button" id="nav-donations">Palestinian Aid Organizations</button>
+    </nav>
+
+    <!-- Hero Section - Today's Casualties (Full Page) -->
+    <section class="hero-section hidden" id="casualty-view">
+        <div class="hero-container">
+            <header class="hero-header">
+                <h1>Palestinian Casualties</h1>
+                <p class="hero-subtitle">Today's Impact</p>
+                <div class="date-display">
+                    <span id="hero-date">Loading...</span>
+                </div>
+            </header>
+
+            <!-- Tab Navigation -->
+            <div class="hero-tab-container">
+                <button class="hero-tab-button active" data-region="gaza">Gaza</button>
+                <button class="hero-tab-button" data-region="westbank">West Bank</button>
+            </div>
+
+            <div class="loading hero-loading" id="loading">
+                <div class="spinner"></div>
+                <p>Loading latest data...</p>
+            </div>
+
+            <!-- Today's Casualties - Main Feature -->
+            <div class="hero-casualties hidden" id="hero-content">
+                <div class="today-stats">
+                    <div class="today-killed">
+                        <div class="today-number" id="hero-daily-killed">-</div>
+                        <div class="today-label">Killed Today</div>
+                    </div>
+                    <div class="today-injured">
+                        <div class="today-number secondary" id="hero-daily-injured">-</div>
+                        <div class="today-label">Injured Today</div>
+                    </div>
+                </div>
+
+                <div class="hero-source">
+                    <span id="hero-data-source">Loading source...</span>
+                </div>
+            </div>
+
+            <!-- Scroll indicator -->
+            <div class="scroll-indicator">
+                <div class="scroll-arrow">↓</div>
+                <span>Scroll for more details</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Main Content Section -->
+    <section class="main-section hidden">
+        <div class="container">
+            <div class="latest-update">
+                <h2>Detailed Report - <span id="current-region">Gaza</span></h2>
+                <div class="date-info">
+                    <span id="latest-date"></span>
+                    <span id="data-source"></span>
+                </div>
+            </div>
+
+            <main id="main-content" class="hidden">
+                <div class="stats-grid">
+                    <div class="stat-card cumulative">
+                        <h3>Total Afflictions</h3>
+                        <div class="stat-number" id="total-killed">-</div>
+                                                  <p class="stat-label">Total Killed</p>
+                        <div class="stat-number secondary" id="total-injured">-</div>
+                                                  <p class="stat-label">Total Injured</p>
+                    </div>
+
+                    <div class="stat-card demographics">
+                        <h3>Demographics</h3>
+                        <div class="demo-stats">
+                            <div class="demo-item">
+                                <span class="demo-number" id="children-killed">-</span>
+                                <span class="demo-label">children killed</span>
+                            </div>
+                            <div class="demo-item">
+                                <span class="demo-number" id="women-killed">-</span>
+                                <span class="demo-label">women killed</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="stat-card professionals" id="professionals-card">
+                        <h3>Professionals</h3>
+                        <div class="demo-stats">
+                            <div class="demo-item">
+                                <span class="demo-number" id="medical-killed">-</span>
+                                <span class="demo-label">medical personnel</span>
+                            </div>
+                            <div class="demo-item">
+                                <span class="demo-number" id="press-killed">-</span>
+                                <span class="demo-label">journalists</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- West Bank specific stats -->
+                    <div class="stat-card settler-attacks hidden" id="settler-attacks-card">
+                        <h3>Settler Violence</h3>
+                        <div class="demo-stats">
+                            <div class="demo-item">
+                                <span class="demo-number" id="settler-attacks">-</span>
+                                <span class="demo-label">settler attacks</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Recent Daily Afflictions (Last 30 Days)</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="casualtiesChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="info-section">
+                    <h3>About This Data</h3>
+                    <div id="gaza-info">
+                        <p>This data is sourced from Gaza's Ministry of Health and Government Media Office. The numbers represent direct casualties of war and are updated daily when reports are available.</p>
+                        <p><strong>Note:</strong> These numbers do not include indirect casualties caused by malnutrition, lack of medical care, or other war-related factors.</p>
+                    </div>
+                    <div id="westbank-info" class="hidden">
+                        <p>This data is sourced from UN OCHA (Office for the Coordination of Humanitarian Affairs). The numbers include both verified casualties and incidents reported to the UN.</p>
+                        <p><strong>Note:</strong> Verified values may lag behind flash updates. Some data points may be missing when reports are not available.</p>
+                    </div>
+                    <p>Data period: October 7, 2023 - Present</p>
+                </div>
+            </main>
+
+            <footer>
+                <p>Last updated: <span id="last-updated"></span></p>
+                <p>Data source: <a href="https://data.techforpalestine.org/" target="_blank">Tech For Palestine</a></p>
+            </footer>
+        </div>
+    </section>
+
+    <!-- Donation Section -->
+    <section class="donation-section hidden" id="donation-view">
+        <div class="container">
+            <header class="donation-header">
+                <h1>Palestinian Aid Organizations</h1>
+                <p class="donation-subtitle">Supporting Palestinians Across All Territories</p>
+                <p class="donation-intro">These reputable humanitarian organizations provide crucial aid and long-term assistance to Palestinians across the West Bank, Gaza, East Jerusalem, and refugee communities. They offer emergency medical care, food assistance, education, and infrastructure development.</p>
+            </header>
+
+            <div class="organizations-grid">
+                <div class="org-card">
+                    <h3>ANERA</h3>
+                    <p class="org-description">For over 50 years, ANERA has been a leading provider of development and relief programs in the West Bank, Gaza, Lebanon, and Jordan. They focus on health, education, and economic development.</p>
+                    <a href="https://www.anera.org/" target="_blank" rel="noopener noreferrer" class="donation-link">
+                        <span>Donate to ANERA</span>
+                        <span class="link-icon">→</span>
+                    </a>
+                </div>
+
+                <div class="org-card">
+                    <h3>UNRWA</h3>
+                    <p class="org-description">The main UN agency operating in the region, providing essential services including education, healthcare, and social services to Palestinian refugees in the West Bank, Gaza, Jordan, Lebanon, and Syria.</p>
+                    <a href="https://donate.unrwa.org/" target="_blank" rel="noopener noreferrer" class="donation-link">
+                        <span>Donate to UNRWA</span>
+                        <span class="link-icon">→</span>
+                    </a>
+                </div>
+
+                <div class="org-card">
+                    <h3>Doctors Without Borders</h3>
+                    <p class="org-description">Independent international medical organization providing urgent medical care to people affected by conflict and crisis. Their teams operate in both Gaza and the West Bank.</p>
+                    <a href="https://www.doctorswithoutborders.org/what-we-do/countries/palestine" target="_blank" rel="noopener noreferrer" class="donation-link">
+                        <span>Donate to MSF</span>
+                        <span class="link-icon">→</span>
+                    </a>
+                </div>
+
+                <div class="org-card">
+                    <h3>Palestine Children's Relief Fund</h3>
+                    <p class="org-description">Non-political, non-profit organization providing free, high-quality medical care to sick and injured children from all backgrounds in the Palestinian territories.</p>
+                    <a href="https://www.pcrf.net/" target="_blank" rel="noopener noreferrer" class="donation-link">
+                        <span>Donate to PCRF</span>
+                        <span class="link-icon">→</span>
+                    </a>
+                </div>
+
+                <div class="org-card">
+                    <h3>Medical Aid for Palestinians</h3>
+                    <p class="org-description">UK-based charity working for the health and dignity of Palestinians living under occupation and as refugees. Active in the West Bank, Gaza, and Lebanon.</p>
+                    <a href="https://www.map.org.uk/" target="_blank" rel="noopener noreferrer" class="donation-link">
+                        <span>Donate to MAP</span>
+                        <span class="link-icon">→</span>
+                    </a>
+                </div>
+
+                <div class="org-card">
+                    <h3>Islamic Relief</h3>
+                    <p class="org-description">Global humanitarian organization active in the Palestinian territories for decades, providing emergency aid, food, and development projects in both Gaza and the West Bank.</p>
+                    <a href="https://irusa.org/middle-east/palestine/" target="_blank" rel="noopener noreferrer" class="donation-link">
+                        <span>Donate to Islamic Relief</span>
+                        <span class="link-icon">→</span>
+                    </a>
+                </div>
+
+                <div class="org-card">
+                    <h3>United Palestinian Appeal</h3>
+                    <p class="org-description">US-based non-profit working to alleviate the suffering of Palestinians in the West Bank, Gaza, and refugee camps. They focus on health, education, and community development.</p>
+                    <a href="https://upaconnect.org/" target="_blank" rel="noopener noreferrer" class="donation-link">
+                        <span>Donate to UPA</span>
+                        <span class="link-icon">→</span>
+                    </a>
+                </div>
+            </div>
+
+            <div class="donation-footer">
+                <p><strong>Important:</strong> These organizations are known for their transparency and long-standing commitment to the region. When choosing an organization, visit their website to learn more about their specific programs and how they are responding to current needs. It is recommended to donate directly through official websites to ensure contributions reach their intended destination.</p>
+            </div>
+        </div>
+    </section>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
+    <script>
+        // Force clear cache on page load
+        if (localStorage.getItem('palestine_casualties_cache_gaza')) {
+            localStorage.removeItem('palestine_casualties_cache_gaza');
+            localStorage.removeItem('palestine_casualties_cache_westbank');
+        }
+
+        // Add cache version to force refresh
+        const cacheVersion = Date.now();
+    </script>
+    <script type="module" src="app.js"></script>
+
+
+</body>
+</html>
