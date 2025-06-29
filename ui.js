@@ -182,18 +182,72 @@ class UIManager {
         }
     }
 
-    // Update Gaza-specific statistics
+        // Update Gaza-specific statistics
     updateGazaStats(latest) {
+        // Dynamic check for stale demographic data
+        // These values were last updated on April 18, 2025 and haven't changed since
+        const STALE_CHILDREN_VALUE = 18000;
+        const STALE_WOMEN_VALUE = 12400;
+        const STALE_DATA_DATE = '2025-04-18';
+
+        const isChildrenDataStale = latest.children_killed === STALE_CHILDREN_VALUE;
+        const isWomenDataStale = latest.women_killed === STALE_WOMEN_VALUE;
+
+        // Log data status for monitoring
+        if (isChildrenDataStale || isWomenDataStale) {
+            console.log(`Demographic data status - Date: ${latest.date}, Children: ${latest.children_killed} (stale: ${isChildrenDataStale}), Women: ${latest.women_killed} (stale: ${isWomenDataStale})`);
+        } else {
+            console.log(`✅ Demographic data has been updated! Date: ${latest.date}, Children: ${latest.children_killed}, Women: ${latest.women_killed}`);
+        }
+
         const updates = {
             totalKilled: latest.killed,
             totalInjured: latest.injured,
-            childrenKilled: latest.children_killed,
-            womenKilled: latest.women_killed,
             medicalKilled: latest.medical_killed,
             pressKilled: latest.press_killed
         };
 
         this.updateStatElements(updates);
+
+        // Handle children killed data
+        this.updateDemographicField(
+            this.elements.childrenKilled,
+            latest.children_killed,
+            isChildrenDataStale,
+            'children',
+            STALE_DATA_DATE
+        );
+
+        // Handle women killed data
+        this.updateDemographicField(
+            this.elements.womenKilled,
+            latest.women_killed,
+            isWomenDataStale,
+            'women',
+            STALE_DATA_DATE
+        );
+    }
+
+    // Helper method to update demographic fields with stale data handling
+    updateDemographicField(element, value, isStale, fieldName, staleDate) {
+        if (!element) return;
+
+        if (isStale) {
+            // Show as estimate with + symbol
+            element.textContent = `${formatNumber(value)}+`;
+            element.classList.add('stale-data');
+            element.setAttribute('data-tooltip', `Estimated minimum - last updated ${staleDate}`);
+            element.title = `Estimated minimum - last updated ${staleDate}`;
+        } else {
+            // Show updated data normally
+            element.textContent = formatNumber(value);
+            element.classList.remove('stale-data');
+            element.removeAttribute('data-tooltip');
+            element.title = '';
+
+            // Log when data gets updated after being stale
+            console.log(`🎉 ${fieldName} data has been updated to ${formatNumber(value)}!`);
+        }
     }
 
     // Update West Bank-specific statistics
