@@ -4,6 +4,8 @@ class ChartManager {
     constructor() {
         this.chart = null;
         this.canvas = null;
+        this.resizeHandler = null;
+        this.setupResizeHandler();
     }
 
     // Initialize chart with canvas element
@@ -16,6 +18,44 @@ class ChartManager {
         return true;
     }
 
+    // Check if device is mobile
+    isMobile() {
+        return window.innerWidth <= 768;
+    }
+
+    // Set up mobile chart wrapper
+    setupMobileWrapper() {
+        const wrapper = this.canvas?.parentElement;
+        const container = wrapper?.parentElement;
+
+        if (!wrapper || !wrapper.classList.contains('chart-wrapper')) return;
+        if (!container || !container.classList.contains('chart-container')) return;
+
+        if (this.isMobile()) {
+            // Configure container for horizontal scrolling
+            container.style.overflowX = 'auto';
+            container.style.overflowY = 'hidden';
+
+            // Reset wrapper overflow
+            wrapper.style.overflowX = 'visible';
+            wrapper.style.overflowY = 'visible';
+
+            // Let CSS media queries handle canvas sizing
+            this.canvas.style.width = '';
+            this.canvas.style.minWidth = '';
+        } else {
+            // Reset to desktop behavior
+            container.style.overflowX = '';
+            container.style.overflowY = '';
+
+            wrapper.style.overflowX = '';
+            wrapper.style.overflowY = '';
+
+            this.canvas.style.width = '';
+            this.canvas.style.minWidth = '';
+        }
+    }
+
     // Create or update chart with new data
     createChart(data, region, selectedDate = null) {
         if (!this.canvas || !data || data.length === 0) {
@@ -25,6 +65,9 @@ class ChartManager {
 
         // Destroy existing chart if it exists
         this.destroyExistingChart();
+
+        // Set up mobile wrapper if on mobile device
+        this.setupMobileWrapper();
 
         try {
             // Prepare data for the last 30 days
@@ -55,6 +98,7 @@ class ChartManager {
         }
     }
 
+    // Prepare chart data from API response
             // Prepare chart data from API response
     prepareChartData(data, region, selectedDate = null) {
         // Sort data by date first using string comparison (safe for YYYY-MM-DD format)
@@ -176,6 +220,7 @@ class ChartManager {
         return {
             responsive: true,
             maintainAspectRatio: false,
+            devicePixelRatio: window.devicePixelRatio || 1,
             interaction: {
                 intersect: false,
                 mode: 'index'
@@ -351,12 +396,37 @@ class ChartManager {
     // Cleanup and destroy chart
     destroy() {
         this.destroyExistingChart();
+
+        // Clean up resize handler
+        if (this.resizeHandler) {
+            window.removeEventListener('resize', this.resizeHandler);
+            window.removeEventListener('orientationchange', this.resizeHandler);
+            this.resizeHandler = null;
+        }
+
         this.canvas = null;
     }
 
     // Check if Chart.js is available
     static isChartJSAvailable() {
         return typeof Chart !== 'undefined';
+    }
+
+    // Set up window resize handler for mobile responsiveness
+    setupResizeHandler() {
+        let resizeTimeout;
+        this.resizeHandler = () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                if (this.chart && this.canvas) {
+                    this.setupMobileWrapper();
+                    this.chart.resize();
+                }
+            }, 150);
+        };
+
+        window.addEventListener('resize', this.resizeHandler);
+        window.addEventListener('orientationchange', this.resizeHandler);
     }
 }
 

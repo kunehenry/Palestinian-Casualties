@@ -201,7 +201,6 @@ class APIClient {
                 return {
                     success: true,
                     data: [closestEntry],
-                    hasChanged: false,
                     isClosestDate: true,
                     actualDate: closestEntry.report_date
                 };
@@ -210,8 +209,8 @@ class APIClient {
             return {
                 success: true,
                 data: [dateEntry],
-                hasChanged: false,
-                isExactDate: true
+                isClosestDate: false,
+                actualDate: selectedDate
             };
         } catch (error) {
             console.error(`Failed to load ${region} data for date ${selectedDate}:`, error);
@@ -219,75 +218,47 @@ class APIClient {
                 success: false,
                 error: error.message,
                 data: null,
-                hasChanged: false
+                isClosestDate: false,
+                actualDate: null
             };
         }
     }
 
     // Load data for all regions with optimized parallel processing
     async loadAllData(useProgressiveLoading = true) {
-        // Use Promise.all for truly parallel requests when not using progressive loading
-        if (!useProgressiveLoading) {
-            const results = await Promise.allSettled([
-                this.loadRegionData('gaza', false),
-                this.loadRegionData('westbank', false)
-            ]);
+        try {
+            const regions = Object.keys(CONFIG.REGIONS);
+            const promises = regions.map(region => this.loadRegionData(region, useProgressiveLoading));
 
-            return {
-                gaza: this.processResult(results[0]),
-                westbank: this.processResult(results[1])
-            };
+            const results = await Promise.allSettled(promises);
+
+            const processedResults = {};
+            regions.forEach((region, index) => {
+                const result = results[index];
+                if (result.status === 'fulfilled') {
+                    processedResults[region] = result.value;
+                } else {
+                    processedResults[region] = {
+                        success: false,
+                        error: result.reason?.message || 'Unknown error',
+                        data: null,
+                        hasChanged: false
+                    };
+                }
+            });
+
+            return processedResults;
+        } catch (error) {
+            console.error('Failed to load all data:', error);
+            throw error;
         }
-
-        // Progressive loading - get cached data immediately
-        const results = {
-            gaza: await this.loadRegionData('gaza', useProgressiveLoading),
-            westbank: await this.loadRegionData('westbank', useProgressiveLoading)
-        };
-
-        // If we're using progressive loading and got cached data,
-        // the background fetches are already in progress
-        return results;
-    }
-
-    // Process Promise.allSettled results
-    processResults(results) {
-        const [gazaResult, westbankResult] = results;
-
-        return {
-            gaza: this.processResult(gazaResult),
-            westbank: this.processResult(westbankResult)
-        };
-    }
-
-    // Process individual result from Promise.allSettled
-    processResult(result) {
-        if (result.status === 'fulfilled') {
-            return result.value;
-        }
-
-        return {
-            success: false,
-            error: result.reason?.message || 'Unknown error',
-            data: null,
-            hasChanged: false
-        };
     }
 
     // Clear all cached data
     clearCache() {
-        try {
-            localStorage.removeItem(`${CONFIG.CACHE.key}_gaza`);
-            localStorage.removeItem(`${CONFIG.CACHE.key}_westbank`);
-
-            // Reset data hashes
-            this.lastDataHash = {
-                gaza: null,
-                westbank: null
-            };
-        } catch (error) {
-            console.warn('Failed to clear cache:', error);
-        }
+        Object.keys(CONFIG.REGIONS).forEach(region => {
+            localStorage.removeItem(`${CONFIG.CACHE.key}_${region}`);
+        });
     }
 }
 

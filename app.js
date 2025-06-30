@@ -14,13 +14,11 @@ class App {
         this.isInitialized = false;
         this.retryCount = 0;
         this.isInitialLoad = true;
-        this.selectedDate = null; // Track selected date
-        this.selectedDateData = null; // Store specific date data
+        this.selectedDate = null;
+        this.selectedDateData = null;
 
-        // Restore saved view from localStorage, default to 'casualty'
         this.currentView = localStorage.getItem('selectedView') || 'casualty';
 
-        // Bind methods to maintain context
         this.handleTabClick = this.handleTabClick.bind(this);
         this.handleVisibilityChange = this.handleVisibilityChange.bind(this);
         this.handleRefresh = debounce(this.handleRefresh.bind(this), 1000);
@@ -29,28 +27,20 @@ class App {
         this.handleDateSelection = this.handleDateSelection.bind(this);
     }
 
-    // Initialize the application
     async initialize() {
         if (this.isInitialized) return;
 
         try {
-            // Initialize UI manager
             uiManager.initialize();
 
-            // Initialize chart manager
             const chartCanvas = document.querySelector('#casualtiesChart');
             chartManager.initialize(chartCanvas);
 
-            // Setup event listeners
             this.setupEventListeners();
 
-            // Restore the saved view state and load data if needed
             await this.switchView(this.currentView);
 
-            // Setup auto-refresh
             this.setupAutoRefresh();
-
-            // Setup pull-to-refresh
             this.setupPullToRefresh();
 
             this.isInitialized = true;
@@ -60,35 +50,32 @@ class App {
         }
     }
 
-    // Setup all event listeners
     setupEventListeners() {
-        // Navigation click handlers
         document.querySelectorAll('.nav-button').forEach(button => {
             button.addEventListener('click', this.handleNavClick);
         });
 
-        // Tab click handlers
         document.querySelectorAll('.hero-tab-button, .tab-button').forEach(button => {
             button.addEventListener('click', this.handleTabClick);
         });
 
-        // Visibility change handler for auto-refresh
         document.addEventListener('visibilitychange', this.handleVisibilityChange);
 
-        // Window focus handler
         window.addEventListener('focus', () => {
             if (!document.hidden) {
                 this.handleRefresh();
             }
         });
 
-        // Listen for background data updates
         window.addEventListener('dataUpdated', this.handleDataUpdate);
-
-        // Listen for date selection
         window.addEventListener('dateSelected', this.handleDateSelection);
 
-        // Error handlers for uncaught errors and unhandled promise rejections
+        const scrollIndicator = document.querySelector('.scroll-indicator');
+        if (scrollIndicator) {
+            scrollIndicator.addEventListener('click', this.handleScrollIndicatorClick.bind(this));
+            scrollIndicator.style.cursor = 'pointer';
+        }
+
         window.addEventListener('error', (event) => {
             console.error('Uncaught error:', event.error);
         });
@@ -98,21 +85,17 @@ class App {
         });
     }
 
-    // Handle background data updates
     async handleDataUpdate(event) {
         const { region } = event.detail;
 
-        // Reload the region data
         try {
             const result = await apiClient.loadRegionData(region, false);
             if (result.success) {
                 this.casualtiesData[region] = result.data;
 
-                // Update display if this is the current region
                 if (region === uiManager.getCurrentRegion()) {
                     this.updateDisplayForRegion(region);
 
-                    // Show update notification if data changed
                     if (result.hasChanged) {
                         uiManager.showUpdateNotification();
                     }
@@ -123,46 +106,48 @@ class App {
         }
     }
 
-    // Handle navigation button clicks
     async handleNavClick(event) {
         const buttonId = event.target.id;
-        const newView = buttonId === 'nav-casualty-data' ? 'casualty' : 'donation';
+        const newView = (buttonId === 'nav-casualty-data' || buttonId === 'nav-casualty-data-mobile') ? 'casualty' : 'donation';
 
         if (newView === this.currentView) return;
 
         await this.switchView(newView);
     }
 
-    // Switch between views
     async switchView(view) {
         this.currentView = view;
 
-        // Save current view to localStorage
         localStorage.setItem('selectedView', view);
 
-        // Update navigation button states
         document.querySelectorAll('.nav-button').forEach(btn => {
             btn.classList.remove('active');
         });
 
         if (view === 'casualty') {
             document.getElementById('nav-casualty-data').classList.add('active');
+            document.getElementById('nav-casualty-data-mobile').classList.add('active');
             document.getElementById('casualty-view').classList.remove('hidden');
             document.querySelector('.main-section').classList.remove('hidden');
             document.getElementById('donation-view').classList.add('hidden');
 
-            // Always load data, but disable progressive loading on initial load to ensure data displays
-            await this.loadData(false, false); // Force fresh load on initial view
+            await this.loadData(false, false);
             this.isInitialLoad = false;
         } else {
             document.getElementById('nav-donations').classList.add('active');
+            document.getElementById('nav-donations-mobile').classList.add('active');
             document.getElementById('casualty-view').classList.add('hidden');
             document.querySelector('.main-section').classList.add('hidden');
             document.getElementById('donation-view').classList.remove('hidden');
         }
+
+        // Scroll to top when switching views
+        window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+        });
     }
 
-    // Handle tab switching
     handleTabClick(event) {
         const region = event.target.dataset.region;
         if (!region || region === uiManager.getCurrentRegion()) return;
@@ -170,27 +155,22 @@ class App {
         this.switchRegion(region);
     }
 
-    // Handle visibility change for auto-refresh
     handleVisibilityChange() {
         if (!document.hidden && this.currentView === 'casualty') {
-            // Page became visible and we're on casualty view, refresh data
             this.handleRefresh();
         }
     }
 
-    // Handle manual refresh
     async handleRefresh() {
         if (this.currentView === 'casualty') {
-            // If a specific date is selected, refresh that date's data instead of latest
             if (this.selectedDate) {
                 await this.loadDataForDate(this.selectedDate);
             } else {
-                await this.loadData(true, false); // Force refresh without progressive loading
+                await this.loadData(true, false);
             }
         }
     }
 
-    // Switch to a different region
     async switchRegion(region) {
         if (!CONFIG.REGIONS[region]) {
             console.error('Invalid region:', region);
@@ -199,11 +179,9 @@ class App {
 
         uiManager.setRegion(region);
 
-        // If a specific date is selected, load that date's data for the new region
         if (this.selectedDate) {
             await this.loadDataForDate(this.selectedDate);
         } else {
-            // Update display with existing data or load new data
             if (this.casualtiesData[region].length > 0) {
                 this.updateDisplayForRegion(region);
             } else {
@@ -212,16 +190,14 @@ class App {
         }
     }
 
-    // Load data for all regions with progressive loading option
     async loadData(isRefresh = false, useProgressiveLoading = true) {
-        // Show loading only if we don't have any cached data to show
         const hasAnyData = this.casualtiesData.gaza.length > 0 || this.casualtiesData.westbank.length > 0;
 
         if (!isRefresh) {
             if (!hasAnyData || !useProgressiveLoading) {
-                uiManager.showLoading(false); // Loading fresh data
+                uiManager.showLoading(false);
             } else if (hasAnyData && useProgressiveLoading) {
-                uiManager.showLoading(true); // Showing cached data
+                uiManager.showLoading(true);
             }
         }
 
@@ -231,7 +207,6 @@ class App {
             let hasAnyDataLoaded = false;
             let hasAnyChanges = false;
 
-            // Process Gaza data
             if (results.gaza.success && results.gaza.data && results.gaza.data.length > 0) {
                 this.casualtiesData.gaza = results.gaza.data;
                 hasAnyDataLoaded = true;
@@ -242,7 +217,6 @@ class App {
                 console.error('Gaza data load failed:', results.gaza.error || 'No data returned');
             }
 
-            // Process West Bank data
             if (results.westbank.success && results.westbank.data && results.westbank.data.length > 0) {
                 this.casualtiesData.westbank = results.westbank.data;
                 hasAnyDataLoaded = true;
@@ -257,26 +231,22 @@ class App {
                 throw new Error('Failed to load data from all sources');
             }
 
-            // Update display for current region
             this.updateDisplayForRegion(uiManager.getCurrentRegion());
 
-            // Show notification if data changed during refresh
             if (isRefresh && hasAnyChanges) {
                 uiManager.showUpdateNotification();
             }
 
-            this.retryCount = 0; // Reset retry count on success
+            this.retryCount = 0;
 
         } catch (error) {
             console.error('Failed to load data:', error);
             this.handleLoadError(error, isRefresh);
         } finally {
-            // Always hide loading state
             uiManager.hideLoading();
         }
     }
 
-    // Load data for a specific region
     async loadRegionData(region) {
         uiManager.showLoading();
 
@@ -297,7 +267,6 @@ class App {
         }
     }
 
-    // Update display for a specific region
     updateDisplayForRegion(region) {
         const data = this.casualtiesData[region];
 
@@ -306,18 +275,12 @@ class App {
             return;
         }
 
-        // Update UI components
         uiManager.updateHeroDisplay(data);
         uiManager.updateMainDisplay(data);
-
-        // Update date button states based on data availability
         uiManager.updateButtonsForRegionData(data);
-
-        // Update chart with selected date context
         chartManager.updateChart(data, region, this.selectedDate);
     }
 
-    // Handle load errors with retry logic
     handleLoadError(error, isRefresh) {
         this.retryCount++;
         const maxRetries = 3;
@@ -330,7 +293,6 @@ class App {
         }
     }
 
-    // Setup auto-refresh
     setupAutoRefresh() {
         const refreshInterval = () => {
             if (!document.hidden && this.currentView === 'casualty') {
@@ -342,7 +304,6 @@ class App {
         this.refreshTimeoutId = setTimeout(refreshInterval, CONFIG.REFRESH.interval);
     }
 
-    // Setup pull-to-refresh functionality
     setupPullToRefresh() {
         const pullToRefreshElement = document.getElementById('pullToRefresh');
         let startY = 0;
@@ -397,7 +358,6 @@ class App {
         document.addEventListener('touchend', onTouchEnd);
     }
 
-    // Reset pull-to-refresh state
     resetPullToRefresh() {
         const pullToRefreshElement = document.getElementById('pullToRefresh');
         setTimeout(() => {
@@ -406,17 +366,24 @@ class App {
         }, 500);
     }
 
-    // Clear cached data
+    handleScrollIndicatorClick() {
+        const mainSection = document.querySelector('.main-section');
+        if (mainSection) {
+            mainSection.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start'
+            });
+        }
+    }
+
     clearCache() {
         Object.keys(CONFIG.REGIONS).forEach(region => {
             localStorage.removeItem(`${CONFIG.CACHE.key}_${region}`);
         });
-        // Also clear view preference
         localStorage.removeItem('selectedView');
         localStorage.removeItem('selectedRegion');
     }
 
-    // Cleanup on app destroy
     destroy() {
         if (this.refreshTimeoutId) {
             clearTimeout(this.refreshTimeoutId);
@@ -433,16 +400,13 @@ class App {
         });
     }
 
-        // Handle date selection from date picker
     async handleDateSelection(event) {
         const { date } = event.detail;
         this.selectedDate = date;
 
-        // Load data for the selected date
         await this.loadDataForDate(date);
     }
 
-    // Load data for a specific date
     async loadDataForDate(date) {
         if (this.currentView !== 'casualty') return;
 
@@ -451,26 +415,19 @@ class App {
 
             const currentRegion = uiManager.getCurrentRegion();
 
-            // Ensure we have the full dataset for chart rendering
             if (!this.casualtiesData[currentRegion] || this.casualtiesData[currentRegion].length === 0) {
                 await this.loadRegionData(currentRegion);
             }
 
-            // Load data for the selected date
             const result = await apiClient.loadRegionDataForDate(currentRegion, date);
 
             if (result.success) {
-                // Store the specific date data for UI display
                 this.selectedDateData = result.data;
 
-                // Update UI components with the specific date data
                 uiManager.updateHeroDisplay(result.data);
                 uiManager.updateMainDisplay(result.data);
-
-                // Update chart with full dataset but filtered to selected date
                 chartManager.updateChart(this.casualtiesData[currentRegion], currentRegion, this.selectedDate);
 
-                // Show notification if using closest date
                 if (result.isClosestDate) {
                     this.showDateNotification(`Data for ${date} not available. Showing closest date: ${result.actualDate}`);
                 }
@@ -485,9 +442,7 @@ class App {
         }
     }
 
-    // Show date notification
     showDateNotification(message) {
-        // Create and show a temporary notification
         const notification = document.createElement('div');
         notification.className = 'date-notification';
         notification.textContent = message;
@@ -510,7 +465,6 @@ class App {
 
         document.body.appendChild(notification);
 
-        // Remove after 4 seconds
         setTimeout(() => {
             if (notification.parentNode) {
                 notification.parentNode.removeChild(notification);
@@ -518,28 +472,23 @@ class App {
         }, 4000);
     }
 
-    // Reset to current date
     resetToCurrentDate() {
         this.selectedDate = null;
         this.selectedDateData = null;
         this.handleRefresh();
     }
 
-    // Check if showing historical data
     isShowingHistoricalData() {
         return this.selectedDate !== null;
     }
 }
 
-// Create and initialize the app
 const app = new App();
 
-// Start the application when DOM is ready
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => app.initialize());
 } else {
     app.initialize();
 }
 
-// Export for debugging
 window.app = app;
